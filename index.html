@@ -1,0 +1,2980 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM Pipeline Visualizer</title>
+  <style>
+    /* ==========================================================================
+       THEME VARIABLES: LIGHT (DEFAULT) & DARK
+       ========================================================================== */
+    :root, [data-theme="light"] {
+      --bg-main: #f8fafc;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f1f5f9;
+      --bg-inset: #f1f5f9;
+      --border: #e2e8f0;
+      --border-subtle: #edf2f7;
+      --border-focus: #2563eb;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-dim: #94a3b8;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
+      
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --accent-soft: rgba(37, 99, 235, 0.08);
+      --accent-glow: rgba(37, 99, 235, 0.2);
+      --positive: #16a34a;
+      --negative: #dc2626;
+      --warning-bg: #fffbeb;
+      --warning-text: #b45309;
+      --warning-border: #fde68a;
+
+      /* Semantic category colors - crisp & accessible in light */
+      --cat-animals: #e11d48;
+      --cat-royalty: #7c3aed;
+      --cat-food: #ea580c;
+      --cat-colors: #059669;
+      --cat-emotions: #db2777;
+      --cat-verbs: #0284c7;
+      --cat-places: #d97706;
+      --cat-technology: #0891b2;
+      --cat-numbers: #4f46e5;
+      --cat-grammar: #64748b;
+      --cat-special: #c2410c;
+      --cat-subword: #475569;
+    }
+
+    [data-theme="dark"] {
+      --bg-main: #0b0f17;
+      --bg-card: #131b26;
+      --bg-card-hover: #192332;
+      --bg-inset: #080c12;
+      --border: #232d3d;
+      --border-subtle: #1c2432;
+      --border-focus: #3b82f6;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+      
+      --accent: #3b82f6;
+      --accent-hover: #60a5fa;
+      --accent-soft: rgba(59, 130, 246, 0.12);
+      --accent-glow: rgba(59, 130, 246, 0.3);
+      --positive: #22c55e;
+      --negative: #ef4444;
+      --warning-bg: rgba(217, 119, 6, 0.15);
+      --warning-text: #fbbf24;
+      --warning-border: rgba(217, 119, 6, 0.4);
+
+      /* Semantic category colors - glowing for dark mode */
+      --cat-animals: #fb7185;
+      --cat-royalty: #c084fc;
+      --cat-food: #fb923c;
+      --cat-colors: #4ade80;
+      --cat-emotions: #f472b6;
+      --cat-verbs: #38bdf8;
+      --cat-places: #fbbf24;
+      --cat-technology: #22d3ee;
+      --cat-numbers: #818cf8;
+      --cat-grammar: #94a3b8;
+      --cat-special: #f97316;
+      --cat-subword: #cbd5e1;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+      padding: 32px 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ==========================================================================
+       HEADER & NAVIGATION
+       ========================================================================== */
+    header {
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    .brand-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      background: var(--accent-soft);
+      border-radius: 8px;
+      color: var(--accent);
+      font-size: 1.25rem;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* Honest toy disclaimer badge */
+    .badge-toy {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      background: var(--warning-bg);
+      color: var(--warning-text);
+      border: 1px solid var(--warning-border);
+      padding: 5px 12px;
+      border-radius: 9999px;
+      letter-spacing: 0.01em;
+    }
+
+    /* Light / Dark Mode Toggle Button */
+    .theme-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .theme-toggle-btn:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-focus);
+    }
+
+    .header-desc {
+      color: var(--text-muted);
+      font-size: 0.96rem;
+      max-width: 920px;
+      line-height: 1.55;
+    }
+
+    /* ==========================================================================
+       PIPELINE STEP NAVIGATION BAR
+       ========================================================================== */
+    .pipeline-nav {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 960px) {
+      .pipeline-nav {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    @media (max-width: 580px) {
+      .pipeline-nav {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .step-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: var(--text-muted);
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .step-btn:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-focus);
+      color: var(--text-main);
+    }
+
+    .step-btn.active {
+      border-color: var(--accent);
+      background: var(--bg-card);
+      color: var(--text-main);
+      box-shadow: 0 0 0 2px var(--accent-glow), var(--shadow-md);
+    }
+
+    .step-btn.active::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--accent);
+    }
+
+    .step-btn .step-num {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--accent);
+    }
+
+    .step-btn .step-title {
+      font-size: 0.88rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Pipeline controls bar */
+    .pipeline-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-bottom: 24px;
+      padding: 12px 18px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button.btn {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      font-size: 0.86rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    button.btn:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--text-dim);
+    }
+
+    button.btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+    }
+
+    button.btn-primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+      color: #ffffff;
+    }
+
+    button.btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .current-step-label {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    .current-step-label strong {
+      color: var(--text-main);
+    }
+
+    /* ==========================================================================
+       STAGE CONTAINER & CARDS
+       ========================================================================== */
+    .stage-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      margin-bottom: 24px;
+      display: none;
+      box-shadow: var(--shadow-md);
+    }
+
+    .stage-card.active {
+      display: block;
+      animation: modernFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modernFadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .stage-header {
+      margin-bottom: 22px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stage-header h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-main);
+    }
+
+    .stage-header .stage-summary {
+      font-size: 0.92rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* ==========================================================================
+       STAGE 1: INPUT
+       ========================================================================== */
+    .input-box {
+      width: 100%;
+      background: var(--bg-inset);
+      border: 1.5px solid var(--border);
+      color: var(--text-main);
+      padding: 14px 18px;
+      font-size: 1.05rem;
+      border-radius: 10px;
+      outline: none;
+      margin-bottom: 16px;
+      font-family: inherit;
+    }
+
+    .input-box:focus {
+      background: var(--bg-card);
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 4px var(--accent-glow);
+    }
+
+    .examples-label {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .example-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .pill-btn {
+      background: var(--bg-inset);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 9999px;
+      padding: 7px 14px;
+      font-size: 0.84rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .pill-btn:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-main);
+      border-color: var(--border-focus);
+    }
+
+    .input-status {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      display: flex;
+      justify-content: space-between;
+      padding-top: 6px;
+      border-top: 1px dashed var(--border);
+    }
+
+    /* ==========================================================================
+       STAGE 2: TOKENIZATION
+       ========================================================================== */
+    .chips-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 18px;
+      background: var(--bg-inset);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      min-height: 80px;
+      align-items: center;
+      margin-bottom: 22px;
+    }
+
+    .token-chip {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+      border: 2px solid transparent;
+      color: #ffffff;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .token-chip:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .token-chip.selected {
+      border-color: #ffffff;
+      outline: 2px solid var(--text-main);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .token-chip .token-text {
+      letter-spacing: 0.01em;
+    }
+
+    .token-chip .token-id {
+      font-size: 0.68rem;
+      opacity: 0.9;
+      font-weight: 500;
+      margin-top: 2px;
+      font-family: monospace;
+    }
+
+    /* Tooltip */
+    .token-chip .tooltip {
+      visibility: hidden;
+      opacity: 0;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0f172a;
+      color: #ffffff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.74rem;
+      font-weight: normal;
+      white-space: nowrap;
+      z-index: 100;
+      pointer-events: none;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    }
+
+    .token-chip:hover .tooltip {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    .table-container {
+      max-height: 280px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    table.token-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.88rem;
+    }
+
+    table.token-table th {
+      background: var(--bg-inset);
+      color: var(--text-muted);
+      padding: 10px 16px;
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    table.token-table td {
+      padding: 9px 16px;
+      border-top: 1px solid var(--border-subtle);
+      color: var(--text-main);
+    }
+
+    table.token-table tr:hover td {
+      background: var(--bg-card-hover);
+    }
+
+    /* ==========================================================================
+       STAGE 3: EMBEDDING
+       ========================================================================== */
+    .info-callout {
+      background: var(--accent-soft);
+      border-left: 4px solid var(--accent);
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      font-size: 0.92rem;
+      margin-bottom: 22px;
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+
+    .selected-token-card {
+      background: var(--bg-inset);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .dimension-guide-box {
+      margin-top: 14px;
+      padding: 12px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .dimension-guide-box strong {
+      color: var(--text-main);
+    }
+
+    .selected-token-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .selected-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .vector-bars-grid {
+      display: grid;
+      grid-template-columns: repeat(16, 1fr);
+      gap: 8px;
+      align-items: flex-end;
+      height: 140px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 12px;
+    }
+
+    @media (max-width: 800px) {
+      .vector-bars-grid {
+        grid-template-columns: repeat(8, 1fr);
+        height: auto;
+      }
+    }
+
+    .vector-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      height: 100%;
+    }
+
+    .bar-track {
+      width: 100%;
+      height: 100px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      width: 100%;
+      position: absolute;
+      left: 0;
+      border-radius: 2px;
+    }
+
+    .dim-label {
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    .dim-value {
+      font-size: 0.7rem;
+      font-family: monospace;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* ==========================================================================
+       STAGE 4: POSITIONAL ENCODING
+       ========================================================================== */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .switch-btn {
+      background: var(--bg-inset);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 7px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.84rem;
+      font-weight: 600;
+    }
+
+    .switch-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+      box-shadow: 0 2px 4px var(--accent-glow);
+    }
+
+    .heatmap-scroll {
+      overflow-x: auto;
+      background: var(--bg-inset);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+
+    .heatmap-grid {
+      display: inline-grid;
+      gap: 3px;
+      font-family: monospace;
+      font-size: 0.75rem;
+    }
+
+    .heatmap-cell {
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      color: #ffffff;
+      font-size: 0.65rem;
+      cursor: default;
+      user-select: none;
+    }
+
+    .heatmap-cell:hover {
+      transform: scale(1.15);
+      z-index: 10;
+      box-shadow: 0 0 8px rgba(0,0,0,0.25);
+    }
+
+    .heatmap-header-cell {
+      width: 30px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      font-size: 0.68rem;
+      font-weight: 700;
+    }
+
+    .heatmap-row-label {
+      padding-right: 12px;
+      white-space: nowrap;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      font-weight: 600;
+    }
+
+    /* ==========================================================================
+       STAGE 5: 3D EMBEDDING SPACE
+       ========================================================================== */
+    .canvas-container {
+      position: relative;
+      background: var(--bg-inset);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 18px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .canvas-hud {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.72rem;
+      font-family: monospace;
+      color: var(--text-muted);
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      box-shadow: var(--shadow-sm);
+      z-index: 10;
+    }
+
+    .canvas-hud .hud-label {
+      color: var(--text-dim);
+      font-weight: 700;
+    }
+
+    .canvas-hud span {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    canvas#plot3d {
+      display: block;
+      width: 100%;
+      height: 480px;
+      cursor: grab;
+    }
+
+    canvas#plot3d:active {
+      cursor: grabbing;
+    }
+
+    .canvas-overlay-controls {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: var(--bg-card);
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-md);
+      z-index: 10;
+      max-width: 210px;
+    }
+
+    .control-group-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+    }
+
+    .control-btn-row {
+      display: flex;
+      gap: 4px;
+    }
+
+    .control-btn-row button,
+    .canvas-overlay-controls button {
+      background: var(--bg-inset);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 5px 8px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      border-radius: 5px;
+      cursor: pointer;
+      flex: 1;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .control-btn-row button:hover,
+    .canvas-overlay-controls button:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-focus);
+    }
+
+    .control-btn-row button.active {
+      background: var(--accent);
+      color: #ffffff;
+      border-color: var(--accent);
+    }
+
+    .canvas-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      display: none;
+      transform: translate(-50%, -120%);
+      z-index: 100;
+      white-space: nowrap;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+    }
+
+    .legend-panel {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: var(--bg-inset);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 5px 10px;
+      border-radius: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      user-select: none;
+    }
+
+    .legend-item:hover {
+      border-color: var(--border-focus);
+      color: var(--text-main);
+    }
+
+    .legend-item.dimmed {
+      opacity: 0.35;
+      text-decoration: line-through;
+    }
+
+    .legend-color-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    /* ==========================================================================
+       STAGE 6: SIMILARITY & PROBABILITY
+       ========================================================================== */
+    .stage6-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .stage6-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel-box {
+      background: var(--bg-inset);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .panel-box h3 {
+      font-size: 1.05rem;
+      margin-bottom: 16px;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .picker-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .picker-col {
+      flex: 1;
+    }
+
+    .picker-col label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+      font-weight: 700;
+    }
+
+    select.word-select {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1.5px solid var(--border);
+      color: var(--text-main);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      outline: none;
+      font-family: inherit;
+    }
+
+    select.word-select:focus {
+      border-color: var(--border-focus);
+    }
+
+    .sim-result-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px;
+      text-align: center;
+      margin-bottom: 18px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .sim-score-num {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: var(--text-main);
+      font-family: monospace;
+    }
+
+    .sim-verdict {
+      font-size: 0.92rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .sim-bar-track {
+      width: 100%;
+      height: 10px;
+      background: var(--bg-inset);
+      border-radius: 9999px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .sim-bar-fill {
+      height: 100%;
+      border-radius: 9999px;
+    }
+
+    /* Ranked list of top similar words */
+    .ranked-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .ranked-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+    }
+
+    .ranked-word {
+      width: 82px;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ranked-bar-track {
+      flex: 1;
+      height: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .ranked-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+    }
+
+    .ranked-val {
+      width: 52px;
+      font-family: monospace;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      text-align: right;
+      font-weight: 600;
+    }
+
+    /* Temperature slider */
+    .slider-container {
+      margin-bottom: 18px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+      border-radius: 8px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.84rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    input[type=range].temp-slider {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .prediction-badge {
+      font-size: 0.72rem;
+      background: var(--warning-bg);
+      color: var(--warning-text);
+      border: 1px solid var(--warning-border);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    /* Matrix heatmap */
+    .matrix-container {
+      overflow-x: auto;
+      margin-top: 10px;
+    }
+
+    /* ==========================================================================
+       HOW IT WORKS (COLLAPSIBLE ACCORDION)
+       ========================================================================== */
+    details.how-it-works {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 22px;
+      margin-top: 30px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    details.how-it-works summary {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-main);
+      cursor: pointer;
+      outline: none;
+      user-select: none;
+    }
+
+    details.how-it-works summary:hover {
+      color: var(--accent);
+    }
+
+    .how-content {
+      margin-top: 18px;
+      cursor: default;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .how-card {
+      background: var(--bg-inset);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .how-card h4 {
+      font-size: 0.98rem;
+      color: var(--accent);
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+
+    .how-card p {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .mono {
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==========================================================================
+       HEADER & AUDIENCE HONESTY BADGE & THEME TOGGLE
+       ========================================================================== -->
+  <header>
+    <div class="header-top">
+      <div class="brand-title">
+        <span class="brand-icon">🧠</span>
+        <span>LLM Pipeline Visualizer</span>
+      </div>
+      <div class="header-actions">
+        <span class="badge-toy">
+          <span>⚠️</span> Educational demo: built-in mini vocabulary and hand-designed embeddings
+        </span>
+        <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Toggle theme">
+          <span id="themeIcon">🌙</span>
+          <span id="themeText">Dark mode</span>
+        </button>
+      </div>
+    </div>
+    <p class="header-desc">
+      Explore how large language models represent text under the hood: from raw strings to tokens, 16D vector embeddings, sinusoidal positional encoding, 3D geometric spaces, and next-word probability distributions.
+    </p>
+  </header>
+
+  <!-- ==========================================================================
+       PIPELINE STEP NAVIGATION BAR
+       ========================================================================== -->
+  <nav class="pipeline-nav" id="pipelineNav">
+    <button class="step-btn active" onclick="goToStage(1)">
+      <span class="step-num">Stage 1</span>
+      <span class="step-title">Text Input</span>
+    </button>
+    <button class="step-btn" onclick="goToStage(2)">
+      <span class="step-num">Stage 2</span>
+      <span class="step-title">Tokenization</span>
+    </button>
+    <button class="step-btn" onclick="goToStage(3)">
+      <span class="step-num">Stage 3</span>
+      <span class="step-title">16D Embeddings</span>
+    </button>
+    <button class="step-btn" onclick="goToStage(4)">
+      <span class="step-num">Stage 4</span>
+      <span class="step-title">Position Encoding</span>
+    </button>
+    <button class="step-btn" onclick="goToStage(5)">
+      <span class="step-num">Stage 5</span>
+      <span class="step-title">3D Space</span>
+    </button>
+    <button class="step-btn" onclick="goToStage(6)">
+      <span class="step-num">Stage 6</span>
+      <span class="step-title">Similarity &amp; Softmax</span>
+    </button>
+  </nav>
+
+  <!-- Global controls -->
+  <div class="pipeline-controls">
+    <div class="btn-group">
+      <button class="btn" id="btnPrev" onclick="navigateStep(-1)" disabled>&larr; Previous step</button>
+      <button class="btn" id="btnNext" onclick="navigateStep(1)">Next step &rarr;</button>
+      <button class="btn btn-primary" onclick="runAllStages()">▶ Run all</button>
+    </div>
+    <div class="current-step-label" id="currentStepLabel">
+      Current stage: <strong>Stage 1: Text Input</strong>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       STAGE 1: INPUT
+       ========================================================================== -->
+  <section class="stage-card active" id="stage1">
+    <div class="stage-header">
+      <h2>1. Input Text</h2>
+      <p class="stage-summary">Type any English sentence or click an example below to push it into our toy language model pipeline.</p>
+    </div>
+
+    <input type="text" id="sentenceInput" class="input-box" value="The king loves the brave dog" placeholder="Type a sentence here..." oninput="onInputChanged()">
+
+    <div class="examples-label">Or choose an example sentence:</div>
+    <div class="example-pills">
+      <button class="pill-btn" onclick="setExampleSentence('The king loves the brave dog')">👑 The king loves the brave dog</button>
+      <button class="pill-btn" onclick="setExampleSentence('The robotic queen eats sweet apples')">🍎 The robotic queen eats sweet apples</button>
+      <button class="pill-btn" onclick="setExampleSentence('A happy child plays with technology')">🤖 A happy child plays with technology</button>
+      <button class="pill-btn" onclick="setExampleSentence('Brave heroes run through dark forests')">🌲 Brave heroes run through dark forests</button>
+    </div>
+
+    <div class="input-status">
+      <span id="tokenCountNotice">Token count: ~6 tokens</span>
+      <span>Maximum pipeline limit: 30 tokens</span>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       STAGE 2: TOKENIZATION
+       ========================================================================== -->
+  <section class="stage-card" id="stage2">
+    <div class="stage-header">
+      <h2>2. Tokenization</h2>
+      <p class="stage-summary">Text is split into smaller units (tokens). Whole words are recognized, unfamiliar words split into subwords, and unknown pieces become [UNK].</p>
+    </div>
+
+    <div class="chips-container" id="chipsContainer">
+      <!-- Generated Token Chips -->
+    </div>
+
+    <h3 style="font-size: 0.98rem; font-weight: 700; margin-bottom: 10px; color: var(--text-main);">Token Breakdown Table</h3>
+    <div class="table-container">
+      <table class="token-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Token</th>
+            <th>Token ID</th>
+            <th>Type</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody id="tokenTableBody">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       STAGE 3: EMBEDDING
+       ========================================================================== -->
+  <section class="stage-card" id="stage3">
+    <div class="stage-header">
+      <h2>3. 16-Dimensional Token Embeddings</h2>
+      <p class="stage-summary">An embedding turns a token ID into a list of numbers that captures meaning.</p>
+    </div>
+
+    <div class="info-callout">
+      💡 <strong>How it works:</strong> Each token is mapped to a vector of 16 numbers. Words with related meanings (like animals, emotions, or royal figures) have positive weights along similar dimensions. Click any token chip below to inspect its unique 16D signature!
+    </div>
+
+    <div class="chips-container" id="embeddingChipsContainer">
+      <!-- Chips for selecting which token vector to inspect -->
+    </div>
+
+    <div class="selected-token-card">
+      <div class="selected-token-header">
+        <div>
+          <span class="selected-title" id="selectedTokenTitle">Token: "king"</span>
+          <span style="color: var(--text-dim); margin-left: 8px;" id="selectedTokenCategory">(Category: royalty)</span>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">
+          16 Dimensions (Normalized, L2 length = 1.0)
+        </div>
+      </div>
+
+      <!-- 16 bar columns representing vector values -->
+      <div class="vector-bars-grid" id="vectorBarsGrid">
+        <!-- Rendered by JS -->
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 0.76rem; color: var(--text-muted); font-weight: 600;">
+        <span><span style="color: var(--accent);">■</span> Positive dimension values</span>
+        <span><span style="color: var(--negative);">■</span> Negative dimension values</span>
+      </div>
+
+      <!-- Systematic dimension meaning inspector -->
+      <div class="dimension-guide-box" id="dimensionGuideBox">
+        <strong>Dimension Meaning:</strong> Hover over or click any dimension bar (d0 – d15) above to view what semantic property it encodes.
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       STAGE 4: POSITIONAL ENCODING
+       ========================================================================== -->
+  <section class="stage-card" id="stage4">
+    <div class="stage-header">
+      <h2>4. Positional Encoding</h2>
+      <p class="stage-summary">Transformers process all words at once. Sinusoidal waves are added to tell the model where each word appears in the sentence.</p>
+    </div>
+
+    <div class="toggle-row">
+      <span style="font-size: 0.88rem; font-weight: 600; color: var(--text-muted);">Heatmap display mode:</span>
+      <button class="switch-btn active" id="btnModePos" onclick="setPositionalView('pe')">Position Values Only (PE)</button>
+      <button class="switch-btn" id="btnModeEmbed" onclick="setPositionalView('embed')">Embedding Only</button>
+      <button class="switch-btn" id="btnModeCombined" onclick="setPositionalView('combined')">Embedding + Position</button>
+    </div>
+
+    <div class="heatmap-scroll">
+      <div id="positionalHeatmap">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 8px;">
+      Formula used: <span class="mono">PE(pos, 2i) = sin(pos / 10000^(2i/16))</span> and <span class="mono">PE(pos, 2i+1) = cos(pos / 10000^(2i/16))</span>.
+      Notice how low dimensions (left) alternate rapidly while high dimensions (right) vary slowly like clock hands!
+    </p>
+  </section>
+
+  <!-- ==========================================================================
+       STAGE 5: 3D EMBEDDING SPACE
+       ========================================================================== -->
+  <section class="stage-card" id="stage5">
+    <div class="stage-header">
+      <h2>5. 3D Semantic Space (PCA Projection)</h2>
+      <p class="stage-summary">16D vectors projected onto the top 3 principal components (PC1, PC2, PC3). Semantic clusters and sentence word paths appear in real-time space.</p>
+    </div>
+
+    <div class="canvas-container">
+      <div class="canvas-hud" id="canvasHud">
+        <div><span class="hud-label">PROJECTION:</span> <span>PCA (16D &rarr; 3D)</span></div>
+        <div><span class="hud-label">ORIENTATION:</span> <span id="hudAngles">Yaw 40° | Pitch 20°</span></div>
+        <div><span class="hud-label">COORDINATES:</span> <span>PC1 (X), PC2 (Y), PC3 (Z)</span></div>
+        <div><span class="hud-label">ACTIVE TOKENS:</span> <span id="hudSentenceCount">0 highlighted</span></div>
+      </div>
+      <canvas id="plot3d" width="900" height="480"></canvas>
+      <div class="canvas-tooltip" id="canvasTooltip">Tooltip</div>
+      <div class="canvas-overlay-controls">
+        <div class="control-group-title">Camera Views</div>
+        <div class="control-btn-row">
+          <button onclick="setCameraPreset('iso')">3D Iso</button>
+          <button onclick="setCameraPreset('top')">Top (XZ)</button>
+          <button onclick="setCameraPreset('front')">Front (XY)</button>
+        </div>
+        <div class="control-group-title" style="margin-top:4px;">System Elements</div>
+        <div class="control-btn-row">
+          <button id="btnToggleGrid" onclick="toggleFloorGrid()">Grid: ON</button>
+          <button id="btnToggleTrajectory" onclick="toggleTrajectory()">Flow: ON</button>
+          <button id="btnToggleDropLines" onclick="toggleDropLines()">Drops: ON</button>
+        </div>
+        <div class="control-btn-row" style="margin-top:4px;">
+          <button onclick="toggleAutoRotate()" id="btnAutoRotate">Pause spin</button>
+          <button onclick="reset3DCamera()">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 10px; font-size: 0.84rem; color: var(--text-muted); font-weight: 600;">
+      Category filter: <span style="font-weight: 400; color: var(--text-dim);">(Click any category to toggle visibility)</span>
+    </div>
+    <div class="legend-panel" id="categoryLegend">
+      <!-- Populated by JS -->
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       STAGE 6: SIMILARITY & PROBABILITY
+       ========================================================================== -->
+  <section class="stage-card" id="stage6">
+    <div class="stage-header">
+      <h2>6. Cosine Similarity, Softmax &amp; Next-Word Prediction</h2>
+      <p class="stage-summary">See how the model scores semantic closeness, converts scores into probabilities, and predicts the next token.</p>
+    </div>
+
+    <div class="stage6-grid">
+      <!-- Left Box: Word-to-word Cosine Similarity -->
+      <div class="panel-box">
+        <h3>Word Comparison &amp; Cosine Metric</h3>
+        
+        <div class="picker-row">
+          <div class="picker-col">
+            <label for="selectWordA">Word A:</label>
+            <select id="selectWordA" class="word-select" onchange="updateWordPairSimilarity()"></select>
+          </div>
+          <div class="picker-col">
+            <label for="selectWordB">Word B:</label>
+            <select id="selectWordB" class="word-select" onchange="updateWordPairSimilarity()"></select>
+          </div>
+        </div>
+
+        <div class="sim-result-box">
+          <div class="sim-score-num" id="simScoreText">0.00</div>
+          <div class="sim-verdict" id="simVerdictText">Calculating...</div>
+          <div class="sim-bar-track">
+            <div class="sim-bar-fill" id="simBarFill" style="width: 50%;"></div>
+          </div>
+        </div>
+
+        <h4 style="font-size: 0.88rem; margin-bottom: 12px; font-weight: 700; color: var(--text-main);">Top 8 Most Similar Words to Word A:</h4>
+        <div class="ranked-list" id="topSimilarList">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Right Box: Softmax & Next Word Prediction -->
+      <div class="panel-box">
+        <h3>
+          <span>Next Word Prediction</span>
+          <span class="prediction-badge">toy prediction, not a real language model</span>
+        </h3>
+
+        <p style="font-size: 0.84rem; color: var(--text-muted); margin-bottom: 14px;">
+          The model averages your sentence's token vectors to create a combined context vector, scores all vocabulary words, and applies Softmax.
+        </p>
+
+        <!-- Temperature Slider -->
+        <div class="slider-container">
+          <div class="slider-label">
+            <span>Softmax Temperature: <strong id="tempDisplay" style="color: var(--accent);">1.00</strong></span>
+            <span style="font-size: 0.74rem; color: var(--text-dim);">(0.1 = sharp &amp; confident, 2.0 = creative &amp; uniform)</span>
+          </div>
+          <input type="range" class="temp-slider" id="tempSlider" min="0.1" max="2.0" step="0.05" value="1.0" oninput="onTemperatureChange()">
+        </div>
+
+        <h4 style="font-size: 0.88rem; margin-bottom: 12px; font-weight: 700; color: var(--text-main);">Top 5 Predicted Next Words:</h4>
+        <div class="ranked-list" id="predictionList">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Sentence Similarity Matrix -->
+        <h4 style="font-size: 0.88rem; margin-top: 22px; margin-bottom: 10px; font-weight: 700; color: var(--text-main);">Sentence Self-Similarity Matrix:</h4>
+        <div class="matrix-container" id="sentenceMatrixContainer">
+          <!-- Matrix rendered by JS -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       HOW IT WORKS (COLLAPSIBLE SECTION)
+       ========================================================================== -->
+  <details class="how-it-works">
+    <summary>📖 How it Works: Educational Guide for Beginners (Click to expand)</summary>
+    <div class="how-content">
+      <div class="how-card">
+        <h4>1. Tokenization</h4>
+        <p>Computers cannot read letters or words directly. A tokenizer converts text into numeric IDs using a vocabulary. If a full word isn't recognized, subword rules split it into pieces (like "brave" + "ly").</p>
+      </div>
+      <div class="how-card">
+        <h4>2. Word Embeddings</h4>
+        <p>Each token ID maps to a list of numbers called a vector. Because random numbers carry no meaning, embeddings place semantically related words (like "king" and "queen") close to each other in vector space.</p>
+      </div>
+      <div class="how-card">
+        <h4>3. Positional Encoding</h4>
+        <p>Unlike humans who read left-to-right, transformers process an entire sentence at once in parallel. Sinusoidal frequency waves are added so the network knows whether "dog" was the 1st or 6th word.</p>
+      </div>
+      <div class="how-card">
+        <h4>4. Cosine Similarity &amp; Softmax</h4>
+        <p>Cosine similarity measures the angle between two word vectors. Softmax converts these raw scores into positive percentages that sum to 100%, allowing the model to sample the most likely next word.</p>
+      </div>
+    </div>
+  </details>
+
+  <!-- ==========================================================================
+       JAVASCRIPT
+       ========================================================================== -->
+  <script>
+    /* ==========================================================================
+       SECTION 0: THEME MANAGEMENT (LIGHT & DARK MODE)
+       ========================================================================== */
+
+    let currentTheme = localStorage.getItem("visualizer_theme") || "light";
+
+    // Sets theme attribute on HTML and updates toggle button label & 3D canvas
+    function applyTheme(theme) {
+      currentTheme = theme;
+      document.documentElement.setAttribute("data-theme", theme);
+      localStorage.setItem("visualizer_theme", theme);
+
+      const iconEl = document.getElementById("themeIcon");
+      const textEl = document.getElementById("themeText");
+      if (theme === "dark") {
+        iconEl.textContent = "☀️";
+        textEl.textContent = "Light mode";
+      } else {
+        iconEl.textContent = "🌙";
+        textEl.textContent = "Dark mode";
+      }
+
+      // Re-render canvas and heatmaps so colors align cleanly
+      if (typeof render3DCanvas === "function") {
+        render3DCanvas();
+      }
+      if (typeof renderStage4Positional === "function") {
+        renderStage4Positional();
+      }
+      if (typeof renderSentenceSimilarityMatrix === "function") {
+        renderSentenceSimilarityMatrix();
+      }
+    }
+
+    // Toggles between light and dark modes
+    function toggleTheme() {
+      const newTheme = currentTheme === "light" ? "dark" : "light";
+      applyTheme(newTheme);
+    }
+
+    /* ==========================================================================
+       SECTION 1: DATA (VOCABULARY & SUBWORDS)
+       ========================================================================== */
+
+    // Special tokens that every LLM tokenizer relies on
+    const SPECIAL_TOKENS = ["[PAD]", "[UNK]", "[CLS]", "[SEP]"];
+
+    // 40 common subword pieces for greedy subword fallback
+    const SUBWORDS = [
+      "ing", "ed", "es", "er", "est", "un", "re", "ly", "tion", "al",
+      "able", "ible", "ness", "ful", "less", "ment", "ous", "en", "pre", "non",
+      "dis", "mis", "sub", "inter", "trans", "super", "semi", "anti", "over", "under",
+      "ship", "hood", "ist", "ity", "ize", "ic", "ive", "s", "in", "im"
+    ];
+
+    // Built-in vocabulary of ~300 common English words grouped by semantic category
+    const CATEGORY_WORDS = {
+      animals: [
+        "dog", "cat", "puppy", "kitten", "wolf", "lion", "tiger", "bear", "fox", "deer",
+        "horse", "cow", "pig", "sheep", "rabbit", "bird", "eagle", "duck", "fish", "shark",
+        "whale", "snake", "frog", "spider", "ant", "bee", "monkey", "elephant", "mouse", "bat"
+      ],
+      royalty: [
+        "king", "queen", "prince", "princess", "lord", "lady", "ruler", "monarch", "knight", "warrior",
+        "doctor", "nurse", "teacher", "student", "scientist", "artist", "child", "boy", "girl", "man",
+        "woman", "person", "baby", "friend", "hero", "villain", "leader", "captain", "president", "citizen"
+      ],
+      food: [
+        "apple", "banana", "orange", "grape", "berry", "bread", "cheese", "milk", "butter", "meat",
+        "chicken", "soup", "salad", "pizza", "cake", "pie", "cookie", "chocolate", "coffee", "tea",
+        "water", "rice", "pasta", "potato", "carrot", "onion", "egg", "sugar", "honey", "juice"
+      ],
+      colors: [
+        "red", "blue", "green", "yellow", "purple", "pink", "brown", "black", "white", "gray",
+        "gold", "silver", "dark", "light", "bright", "pale", "crimson", "cyan", "violet", "amber"
+      ],
+      emotions: [
+        "happy", "sad", "angry", "joyful", "brave", "calm", "proud", "excited", "afraid", "nervous",
+        "kind", "cruel", "smart", "foolish", "wise", "honest", "loving", "eager", "tired", "strong",
+        "weak", "gentle", "wild", "loyal", "jealous", "hopeful", "peaceful", "lonely", "curious", "bold"
+      ],
+      verbs: [
+        "run", "walk", "jump", "fly", "swim", "sleep", "wake", "eat", "drink", "speak",
+        "talk", "listen", "hear", "see", "watch", "read", "write", "think", "know", "understand",
+        "love", "hate", "like", "build", "destroy", "create", "find", "lose", "give", "take",
+        "help", "fight", "protect", "travel", "learn"
+      ],
+      places: [
+        "city", "town", "village", "castle", "kingdom", "forest", "woods", "mountain", "river", "lake",
+        "ocean", "sea", "island", "desert", "valley", "road", "bridge", "house", "home", "room",
+        "school", "hospital", "park", "garden", "tower", "palace", "temple", "shop", "library", "planet"
+      ],
+      technology: [
+        "computer", "robot", "machine", "code", "program", "data", "screen", "phone", "internet", "network",
+        "server", "chip", "software", "hardware", "model", "algorithm", "sensor", "device", "battery", "wire",
+        "circuit", "signal", "digital", "system", "engine"
+      ],
+      numbers: [
+        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+        "ten", "hundred", "thousand", "first", "second", "third", "many", "few", "several", "all"
+      ],
+      grammar: [
+        "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+        "have", "has", "had", "do", "does", "did", "and", "but", "or", "so",
+        "because", "if", "then", "to", "of", "in", "on", "at", "by", "for",
+        "with", "about", "into", "through", "this", "that"
+      ]
+    };
+
+    // Color definitions for each word category (Light & Dark friendly)
+    const CATEGORY_COLORS = {
+      animals: "#e11d48",
+      royalty: "#7c3aed",
+      food: "#ea580c",
+      colors: "#059669",
+      emotions: "#db2777",
+      verbs: "#0284c7",
+      places: "#d97706",
+      technology: "#0891b2",
+      numbers: "#4f46e5",
+      grammar: "#64748b",
+      special: "#c2410c",
+      subword: "#475569"
+    };
+
+    // Full Vocabulary Array and lookup tables
+    const VOCABULARY = [];
+    const WORD_TO_ID = {};
+    const WORD_TO_CATEGORY = {};
+    const VISIBLE_CATEGORIES = {};
+
+    // Initialize vocabulary list and maps
+    (function initializeVocabulary() {
+      // 1. Add Special tokens
+      SPECIAL_TOKENS.forEach(token => {
+        const id = VOCABULARY.length;
+        VOCABULARY.push(token);
+        WORD_TO_ID[token] = id;
+        WORD_TO_CATEGORY[token] = "special";
+      });
+
+      // 2. Add Category words
+      for (const [catName, wordsList] of Object.entries(CATEGORY_WORDS)) {
+        VISIBLE_CATEGORIES[catName] = true;
+        wordsList.forEach(word => {
+          if (!(word in WORD_TO_ID)) {
+            const id = VOCABULARY.length;
+            VOCABULARY.push(word);
+            WORD_TO_ID[word] = id;
+            WORD_TO_CATEGORY[word] = catName;
+          }
+        });
+      }
+
+      // 3. Add Subword tokens
+      SUBWORDS.forEach(sub => {
+        const subToken = "##" + sub; // standard subword representation prefix
+        if (!(subToken in WORD_TO_ID)) {
+          const id = VOCABULARY.length;
+          VOCABULARY.push(subToken);
+          WORD_TO_ID[subToken] = id;
+          WORD_TO_CATEGORY[subToken] = "subword";
+        }
+      });
+
+      VISIBLE_CATEGORIES["special"] = true;
+      VISIBLE_CATEGORIES["subword"] = true;
+    })();
+
+    /* ==========================================================================
+       SECTION 2: MATH HELPERS (SEED, VECTORS, SOFTMAX, PCA)
+       ========================================================================== */
+
+    // Simple pseudo-random number generator seeded with a string
+    function seededRandom(seedString) {
+      let hash = 1779033703 ^ seedString.length;
+      for (let i = 0; i < seedString.length; i++) {
+        hash = Math.imul(hash ^ seedString.charCodeAt(i), 3432918353);
+        hash = (hash << 13) | (hash >>> 19);
+      }
+      return function() {
+        hash = Math.imul(hash ^ (hash >>> 16), 2246822507);
+        hash = Math.imul(hash ^ (hash >>> 13), 3266489909);
+        return ((hash ^= hash >>> 16) >>> 0) / 4294967296;
+      };
+    }
+
+    // Dot product of two equal-length arrays
+    function dotProduct(vecA, vecB) {
+      let sum = 0;
+      for (let i = 0; i < vecA.length; i++) {
+        sum += vecA[i] * vecB[i];
+      }
+      return sum;
+    }
+
+    // Euclidean norm (length) of a vector
+    function vectorNorm(vec) {
+      let sumSq = 0;
+      for (let i = 0; i < vec.length; i++) {
+        sumSq += vec[i] * vec[i];
+      }
+      return Math.sqrt(sumSq) || 1e-9;
+    }
+
+    // L2 Normalize a vector so its length is 1.0
+    function normalizeVector(vec) {
+      const len = vectorNorm(vec);
+      return vec.map(val => val / len);
+    }
+
+    // Cosine similarity between two vectors (-1 to 1)
+    function cosineSimilarity(vecA, vecB) {
+      const dot = dotProduct(vecA, vecB);
+      const normA = vectorNorm(vecA);
+      const normB = vectorNorm(vecB);
+      return dot / (normA * normB);
+    }
+
+    // Softmax function with temperature parameter: P_i = exp(z_i / T) / sum(exp(z / T))
+    function softmax(scores, temperature = 1.0) {
+      const safeTemp = Math.max(0.01, temperature);
+      const maxVal = Math.max(...scores); // for numerical stability
+      const expValues = scores.map(s => Math.exp((s - maxVal) / safeTemp));
+      const sumExp = expValues.reduce((acc, v) => acc + v, 0);
+      return expValues.map(v => v / sumExp);
+    }
+
+    // Computes Principal Component Analysis (PCA) to reduce 16D vectors to 3D
+    function computePCA(dataMatrix, numComponents = 3) {
+      const numRows = dataMatrix.length;
+      const numCols = dataMatrix[0].length;
+
+      // 1. Center the data by subtracting column means
+      const means = new Array(numCols).fill(0);
+      for (let r = 0; r < numRows; r++) {
+        for (let c = 0; c < numCols; c++) {
+          means[c] += dataMatrix[r][c];
+        }
+      }
+      for (let c = 0; c < numCols; c++) {
+        means[c] /= numRows;
+      }
+
+      const centered = dataMatrix.map(row => row.map((val, c) => val - means[c]));
+
+      // 2. Compute Covariance Matrix: (1 / N) * X^T * X
+      let cov = [];
+      for (let i = 0; i < numCols; i++) {
+        cov[i] = new Array(numCols).fill(0);
+        for (let j = 0; j < numCols; j++) {
+          let sum = 0;
+          for (let r = 0; r < numRows; r++) {
+            sum += centered[r][i] * centered[r][j];
+          }
+          cov[i][j] = sum / numRows;
+        }
+      }
+
+      // 3. Power Iteration to extract the top eigenvectors
+      const eigenvectors = [];
+      for (let comp = 0; comp < numComponents; comp++) {
+        let v = new Array(numCols).fill(0).map((_, i) => Math.sin(comp * 7 + i));
+        v = normalizeVector(v);
+
+        for (let iter = 0; iter < 30; iter++) {
+          for (const prev of eigenvectors) {
+            const projection = dotProduct(v, prev);
+            for (let c = 0; c < numCols; c++) {
+              v[c] -= projection * prev[c];
+            }
+          }
+          v = normalizeVector(v);
+
+          const vNext = new Array(numCols).fill(0);
+          for (let i = 0; i < numCols; i++) {
+            for (let j = 0; j < numCols; j++) {
+              vNext[i] += cov[i][j] * v[j];
+            }
+          }
+          v = normalizeVector(vNext);
+        }
+
+        eigenvectors.push(v);
+      }
+
+      // 4. Project centered data onto the top 3 eigenvectors
+      const projected3D = centered.map(row => [
+        dotProduct(row, eigenvectors[0]),
+        dotProduct(row, eigenvectors[1]),
+        dotProduct(row, eigenvectors[2])
+      ]);
+
+      return projected3D;
+    }
+
+    /* ==========================================================================
+       SECTION 3: EMBEDDINGS (16-DIMENSIONAL HAND-DESIGNED VECTORS)
+       ========================================================================== */
+
+    // 16-Dimensional category directional centers
+    const CATEGORY_BASE_VECTORS = {
+      animals:    [ 0.8, -0.2,  0.7, -0.3,  0.1,  0.0, -0.5,  0.6, -0.1,  0.0,  0.2, -0.1,  0.1, -0.2,  0.1,  0.0],
+      royalty:    [-0.6,  0.9, -0.2,  0.8,  0.5, -0.1,  0.7, -0.2,  0.3,  0.1, -0.2,  0.1,  0.0,  0.3, -0.1,  0.2],
+      food:       [ 0.2, -0.5,  0.9, -0.1, -0.6,  0.4, -0.3, -0.4,  0.7, -0.2,  0.3, -0.1,  0.2, -0.1,  0.0, -0.3],
+      colors:     [-0.3, -0.4,  0.1, -0.6,  0.8,  0.8, -0.2,  0.1, -0.5,  0.3,  0.1,  0.4, -0.2,  0.1,  0.2, -0.1],
+      emotions:   [-0.2,  0.3, -0.5,  0.7, -0.3, -0.4,  0.8,  0.2,  0.0,  0.9, -0.1, -0.3,  0.4,  0.1, -0.2,  0.3],
+      verbs:      [ 0.1,  0.1, -0.3,  0.2,  0.0, -0.7,  0.2,  0.8,  0.3, -0.4,  0.9,  0.1, -0.3,  0.2,  0.1, -0.1],
+      places:     [-0.4, -0.1,  0.4, -0.5,  0.1,  0.3, -0.6, -0.3, -0.2, -0.5, -0.3,  0.8,  0.7, -0.2,  0.1,  0.4],
+      technology: [-0.5,  0.2, -0.7,  0.1, -0.1,  0.6, -0.3,  0.4, -0.6,  0.2,  0.3, -0.5, -0.2,  0.9,  0.8, -0.2],
+      numbers:    [ 0.0,  0.0, -0.2, -0.1,  0.2, -0.2,  0.0, -0.2,  0.1, -0.1,  0.1,  0.1, -0.2, -0.1, -0.3,  0.9],
+      grammar:    [ 0.0, -0.1,  0.0,  0.1, -0.1,  0.0,  0.1,  0.0, -0.1,  0.0,  0.0,  0.1,  0.0,  0.0,  0.0,  0.0],
+      special:    [-0.1, -0.1, -0.1, -0.1, -0.1, -0.1, -0.1, -0.1, -0.1, -0.1, -0.1, -0.1, -0.1, -0.1, -0.1, -0.1],
+      subword:    [ 0.1,  0.0, -0.1,  0.0,  0.1, -0.1,  0.0,  0.1,  0.0, -0.1,  0.1,  0.0, -0.1,  0.1,  0.0, -0.1]
+    };
+
+    // Table of 16D embedding vectors for all vocabulary words
+    const EMBEDDINGS_TABLE = {};
+
+    // Generate deterministic 16D vectors for every word in the vocabulary
+    (function generateAllEmbeddings() {
+      VOCABULARY.forEach(word => {
+        const cat = WORD_TO_CATEGORY[word] || "grammar";
+        const baseVec = CATEGORY_BASE_VECTORS[cat] || new Array(16).fill(0.1);
+        const rand = seededRandom("seed_" + word);
+
+        const rawVec = [];
+        for (let dim = 0; dim < 16; dim++) {
+          const noise = (rand() - 0.5) * 0.45;
+          rawVec.push(baseVec[dim] + noise);
+        }
+
+        EMBEDDINGS_TABLE[word] = normalizeVector(rawVec);
+      });
+    })();
+
+    // Precompute 3D coordinates for all vocabulary words using PCA
+    let VOCAB_3D_COORDS = {};
+    (function computeAll3DCoordinates() {
+      const vocabList = VOCABULARY;
+      const matrix = vocabList.map(w => EMBEDDINGS_TABLE[w]);
+      const projected = computePCA(matrix, 3);
+
+      let maxVal = 0.01;
+      for (let i = 0; i < projected.length; i++) {
+        for (let d = 0; d < 3; d++) {
+          if (Math.abs(projected[i][d]) > maxVal) {
+            maxVal = Math.abs(projected[i][d]);
+          }
+        }
+      }
+
+      const scale = 140 / maxVal;
+      vocabList.forEach((word, index) => {
+        VOCAB_3D_COORDS[word] = {
+          x: projected[index][0] * scale,
+          y: projected[index][1] * scale,
+          z: projected[index][2] * scale
+        };
+      });
+    })();
+
+    // Calculates the standard sinusoidal positional encoding for a given position
+    function getPositionalEncoding(pos, dimensions = 16) {
+      const pe = new Array(dimensions).fill(0);
+      for (let i = 0; i < dimensions; i++) {
+        const power = Math.floor(i / 2) * 2 / dimensions;
+        const denominator = Math.pow(10000, power);
+        if (i % 2 === 0) {
+          pe[i] = Math.sin(pos / denominator);
+        } else {
+          pe[i] = Math.cos(pos / denominator);
+        }
+      }
+      return pe;
+    }
+
+    /* ==========================================================================
+       SECTION 4: TOKENIZER
+       ========================================================================== */
+
+    // Greedy longest-match subword tokenizer
+    function tokenizeWord(wordStr) {
+      const clean = wordStr.toLowerCase().trim();
+      if (!clean) return [];
+
+      if (clean in WORD_TO_ID) {
+        return [{
+          text: clean,
+          id: WORD_TO_ID[clean],
+          type: "whole word",
+          category: WORD_TO_CATEGORY[clean],
+          details: `Direct match in vocabulary (${WORD_TO_CATEGORY[clean]})`
+        }];
+      }
+
+      const tokens = [];
+      let startIdx = 0;
+
+      while (startIdx < clean.length) {
+        let longestMatch = null;
+        let longestLen = 0;
+
+        for (let endIdx = clean.length; endIdx > startIdx; endIdx--) {
+          const piece = clean.slice(startIdx, endIdx);
+          const candidateToken = (startIdx === 0) ? piece : "##" + piece;
+
+          if (candidateToken in WORD_TO_ID) {
+            longestMatch = candidateToken;
+            longestLen = endIdx - startIdx;
+            break;
+          }
+        }
+
+        if (longestMatch) {
+          tokens.push({
+            text: longestMatch,
+            id: WORD_TO_ID[longestMatch],
+            type: "subword",
+            category: "subword",
+            details: `Subword piece: "${longestMatch}"`
+          });
+          startIdx += longestLen;
+        } else {
+          tokens.push({
+            text: "[UNK]",
+            id: WORD_TO_ID["[UNK]"],
+            type: "unknown",
+            category: "special",
+            details: `Unmatched segment: "${clean.slice(startIdx)}"`
+          });
+          break;
+        }
+      }
+
+      return tokens;
+    }
+
+    // Tokenizes a complete input sentence into tokens (with limit of 30)
+    function tokenizeSentence(sentence) {
+      if (!sentence || !sentence.trim()) return [];
+
+      const rawWords = sentence
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        .filter(w => w.length > 0);
+
+      const allTokens = [];
+      for (const word of rawWords) {
+        const wordTokens = tokenizeWord(word);
+        for (const t of wordTokens) {
+          allTokens.push(t);
+          if (allTokens.length >= 30) break;
+        }
+        if (allTokens.length >= 30) break;
+      }
+
+      return allTokens;
+    }
+
+    /* ==========================================================================
+       SECTION 5: 3D CANVAS RENDERER (SYSTEMATIC SCIENTIFIC EMBEDDING PROJECTOR)
+       ========================================================================== */
+
+    const canvas = document.getElementById("plot3d");
+    const ctx = canvas.getContext("2d");
+    const canvasTooltip = document.getElementById("canvasTooltip");
+
+    // Camera view state
+    const camera = {
+      yaw: 0.75,       // horizontal angle (radians)
+      pitch: 0.35,     // vertical angle (radians)
+      distance: 380,   // zoom distance
+      autoRotate: true,
+      isDragging: false,
+      lastMouseX: 0,
+      lastMouseY: 0,
+      showGrid: true,
+      showTrajectory: true,
+      showDropLines: true
+    };
+
+    let projectedPointsCache = [];
+
+    // Rotates a 3D coordinate according to current camera yaw and pitch
+    function rotate3DPoint(x, y, z, yaw, pitch) {
+      const cosY = Math.cos(yaw);
+      const sinY = Math.sin(yaw);
+      const x1 = x * cosY - z * sinY;
+      const z1 = x * sinY + z * cosY;
+
+      const cosP = Math.cos(pitch);
+      const sinP = Math.sin(pitch);
+      const y1 = y * cosP - z1 * sinP;
+      const z2 = y * sinP + z1 * cosP;
+
+      return { x: x1, y: y1, z: z2 };
+    }
+
+    // Projects a rotated 3D point onto the 2D canvas screen with perspective
+    function projectToScreen(x1, y1, z2, width, height, distance) {
+      const fov = 420;
+      const depth = distance + z2;
+      const scale = depth > 10 ? fov / depth : fov / 10;
+
+      return {
+        screenX: (width / 2) + x1 * scale,
+        screenY: (height / 2) - y1 * scale,
+        scale: scale,
+        depth: z2
+      };
+    }
+
+    // High-DPI canvas resizing so rendering is razor-sharp on Retina / 4K screens
+    function resizeCanvasDPI() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const targetW = rect.width || 900;
+      const targetH = 480;
+
+      if (canvas.width !== targetW * dpr || canvas.height !== targetH * dpr) {
+        canvas.width = targetW * dpr;
+        canvas.height = targetH * dpr;
+      }
+    }
+
+    // Camera preset angles
+    function setCameraPreset(preset) {
+      if (preset === 'iso') {
+        camera.yaw = 0.75;
+        camera.pitch = 0.35;
+        camera.distance = 380;
+      } else if (preset === 'top') {
+        camera.yaw = 0.0;
+        camera.pitch = 1.56; // looking directly down at X-Z plane
+        camera.distance = 410;
+      } else if (preset === 'front') {
+        camera.yaw = 0.0;
+        camera.pitch = 0.0; // looking straight at X-Y plane
+        camera.distance = 380;
+      }
+      render3DCanvas();
+    }
+
+    // Toggle ground coordinate grid
+    function toggleFloorGrid() {
+      camera.showGrid = !camera.showGrid;
+      const btn = document.getElementById("btnToggleGrid");
+      btn.textContent = camera.showGrid ? "Grid: ON" : "Grid: OFF";
+      btn.classList.toggle("active", camera.showGrid);
+      render3DCanvas();
+    }
+
+    // Toggle sentence semantic flow trajectory
+    function toggleTrajectory() {
+      camera.showTrajectory = !camera.showTrajectory;
+      const btn = document.getElementById("btnToggleTrajectory");
+      btn.textContent = camera.showTrajectory ? "Flow: ON" : "Flow: OFF";
+      btn.classList.toggle("active", camera.showTrajectory);
+      render3DCanvas();
+    }
+
+    // Toggle depth drop lines to ground plane
+    function toggleDropLines() {
+      camera.showDropLines = !camera.showDropLines;
+      const btn = document.getElementById("btnToggleDropLines");
+      btn.textContent = camera.showDropLines ? "Drops: ON" : "Drops: OFF";
+      btn.classList.toggle("active", camera.showDropLines);
+      render3DCanvas();
+    }
+
+    // Main 3D Canvas rendering loop with systematic scientific styling
+    function render3DCanvas() {
+      resizeCanvasDPI();
+
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
+      const isDark = currentTheme === "dark";
+
+      ctx.save();
+      ctx.scale(dpr, dpr);
+
+      // 1. Viewport Background
+      ctx.fillStyle = isDark ? "#080c12" : "#f8fafc";
+      ctx.fillRect(0, 0, w, h);
+
+      // 2. Systematic Coordinate Floor Grid (Y = -120 plane)
+      const floorY = -110;
+      if (camera.showGrid) {
+        ctx.lineWidth = 1;
+        const gridMin = -120;
+        const gridMax = 120;
+        const gridStep = 40;
+
+        ctx.strokeStyle = isDark ? "rgba(35, 45, 61, 0.45)" : "rgba(226, 232, 240, 0.85)";
+
+        // Parallel lines along X
+        for (let z = gridMin; z <= gridMax; z += gridStep) {
+          const p1 = projectToScreen(rotate3DPoint(gridMin, floorY, z, camera.yaw, camera.pitch).x, rotate3DPoint(gridMin, floorY, z, camera.yaw, camera.pitch).y, rotate3DPoint(gridMin, floorY, z, camera.yaw, camera.pitch).z, w, h, camera.distance);
+          const p2 = projectToScreen(rotate3DPoint(gridMax, floorY, z, camera.yaw, camera.pitch).x, rotate3DPoint(gridMax, floorY, z, camera.yaw, camera.pitch).y, rotate3DPoint(gridMax, floorY, z, camera.yaw, camera.pitch).z, w, h, camera.distance);
+          ctx.beginPath();
+          ctx.moveTo(p1.screenX, p1.screenY);
+          ctx.lineTo(p2.screenX, p2.screenY);
+          ctx.stroke();
+        }
+
+        // Parallel lines along Z
+        for (let x = gridMin; x <= gridMax; x += gridStep) {
+          const p1 = projectToScreen(rotate3DPoint(x, floorY, gridMin, camera.yaw, camera.pitch).x, rotate3DPoint(x, floorY, gridMin, camera.yaw, camera.pitch).y, rotate3DPoint(x, floorY, gridMin, camera.yaw, camera.pitch).z, w, h, camera.distance);
+          const p2 = projectToScreen(rotate3DPoint(x, floorY, gridMax, camera.yaw, camera.pitch).x, rotate3DPoint(x, floorY, gridMax, camera.yaw, camera.pitch).y, rotate3DPoint(x, floorY, gridMax, camera.yaw, camera.pitch).z, w, h, camera.distance);
+          ctx.beginPath();
+          ctx.moveTo(p1.screenX, p1.screenY);
+          ctx.lineTo(p2.screenX, p2.screenY);
+          ctx.stroke();
+        }
+
+        // Center floor ring
+        const floorCenter = projectToScreen(rotate3DPoint(0, floorY, 0, camera.yaw, camera.pitch).x, rotate3DPoint(0, floorY, 0, camera.yaw, camera.pitch).y, rotate3DPoint(0, floorY, 0, camera.yaw, camera.pitch).z, w, h, camera.distance);
+        ctx.beginPath();
+        ctx.arc(floorCenter.screenX, floorCenter.screenY, 8 * floorCenter.scale, 0, Math.PI * 2);
+        ctx.strokeStyle = isDark ? "rgba(59, 130, 246, 0.4)" : "rgba(37, 99, 235, 0.3)";
+        ctx.stroke();
+      }
+
+      // 3. Principal Component Axes (PC1, PC2, PC3)
+      const origin = projectToScreen(0, 0, 0, w, h, camera.distance);
+      const axisLen = 105;
+
+      const axes = [
+        { label: "PC1 (Concepts)", dir: [1, 0, 0], color: isDark ? "#f43f5e" : "#e11d48" },
+        { label: "PC2 (Syntax/State)", dir: [0, 1, 0], color: isDark ? "#10b981" : "#059669" },
+        { label: "PC3 (Domain)", dir: [0, 0, 1], color: isDark ? "#38bdf8" : "#0284c7" }
+      ];
+
+      // Dotted negative axis lines for orientation
+      ctx.setLineDash([3, 4]);
+      ctx.strokeStyle = isDark ? "rgba(100, 116, 139, 0.25)" : "rgba(148, 163, 184, 0.45)";
+      ctx.lineWidth = 1;
+      axes.forEach(axis => {
+        const negPt = rotate3DPoint(-axisLen * axis.dir[0], -axisLen * axis.dir[1], -axisLen * axis.dir[2], camera.yaw, camera.pitch);
+        const pNeg = projectToScreen(negPt.x, negPt.y, negPt.z, w, h, camera.distance);
+        ctx.beginPath();
+        ctx.moveTo(origin.screenX, origin.screenY);
+        ctx.lineTo(pNeg.screenX, pNeg.screenY);
+        ctx.stroke();
+      });
+      ctx.setLineDash([]); // Reset solid
+
+      // Solid positive axes with arrow indicators and ticks
+      axes.forEach(axis => {
+        const pt = rotate3DPoint(axisLen * axis.dir[0], axisLen * axis.dir[1], axisLen * axis.dir[2], camera.yaw, camera.pitch);
+        const p = projectToScreen(pt.x, pt.y, pt.z, w, h, camera.distance);
+
+        ctx.beginPath();
+        ctx.strokeStyle = axis.color;
+        ctx.lineWidth = 2;
+        ctx.moveTo(origin.screenX, origin.screenY);
+        ctx.lineTo(p.screenX, p.screenY);
+        ctx.stroke();
+
+        // Axis label badge
+        ctx.font = "bold 11px monospace";
+        ctx.fillStyle = axis.color;
+        ctx.fillText(axis.label, p.screenX + 6, p.screenY - 4);
+      });
+
+      // 4. Project Vocabulary points
+      const currentTokens = currentSentenceTokens || [];
+      const sentenceWordsOrdered = currentTokens.map(t => t.text);
+      const sentenceWordsSet = new Set(sentenceWordsOrdered);
+
+      projectedPointsCache = [];
+
+      for (const word of VOCABULARY) {
+        const cat = WORD_TO_CATEGORY[word] || "grammar";
+        if (!VISIBLE_CATEGORIES[cat]) continue;
+
+        const coords = VOCAB_3D_COORDS[word];
+        if (!coords) continue;
+
+        const rot = rotate3DPoint(coords.x, coords.y, coords.z, camera.yaw, camera.pitch);
+        const proj = projectToScreen(rot.x, rot.y, rot.z, w, h, camera.distance);
+
+        // Ground floor drop coordinate
+        const floorRot = rotate3DPoint(coords.x, floorY, coords.z, camera.yaw, camera.pitch);
+        const floorProj = projectToScreen(floorRot.x, floorRot.y, floorRot.z, w, h, camera.distance);
+
+        const isSentenceWord = sentenceWordsSet.has(word);
+        const color = CATEGORY_COLORS[cat] || "#64748b";
+
+        projectedPointsCache.push({
+          word: word,
+          category: cat,
+          color: color,
+          screenX: proj.screenX,
+          screenY: proj.screenY,
+          depth: proj.depth,
+          scale: proj.scale,
+          coords: coords,
+          floorX: floorProj.screenX,
+          floorY: floorProj.screenY,
+          isSentenceWord: isSentenceWord
+        });
+      }
+
+      // 5. Draw Ground Drop Lines for Sentence Words (Grounding depth cue)
+      if (camera.showDropLines) {
+        for (const pt of projectedPointsCache) {
+          if (pt.isSentenceWord) {
+            ctx.beginPath();
+            ctx.setLineDash([3, 3]);
+            ctx.strokeStyle = isDark ? "rgba(148, 163, 184, 0.4)" : "rgba(100, 116, 139, 0.4)";
+            ctx.lineWidth = 1.2;
+            ctx.moveTo(pt.screenX, pt.screenY);
+            ctx.lineTo(pt.floorX, pt.floorY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Floor contact shadow disc
+            ctx.beginPath();
+            ctx.ellipse(pt.floorX, pt.floorY, 7 * pt.scale, 3.5 * pt.scale, 0, 0, Math.PI * 2);
+            ctx.fillStyle = isDark ? "rgba(0, 0, 0, 0.5)" : "rgba(15, 23, 42, 0.15)";
+            ctx.fill();
+          }
+        }
+      }
+
+      // 6. Draw Sentence Semantic Trajectory Path (Flow line)
+      if (camera.showTrajectory && sentenceWordsOrdered.length > 1) {
+        ctx.beginPath();
+        let firstDrawn = false;
+        sentenceWordsOrdered.forEach(wrd => {
+          const item = projectedPointsCache.find(p => p.word === wrd);
+          if (item) {
+            if (!firstDrawn) {
+              ctx.moveTo(item.screenX, item.screenY);
+              firstDrawn = true;
+            } else {
+              ctx.lineTo(item.screenX, item.screenY);
+            }
+          }
+        });
+        ctx.strokeStyle = isDark ? "rgba(56, 189, 248, 0.75)" : "rgba(2, 132, 199, 0.75)";
+        ctx.lineWidth = 2.2;
+        ctx.setLineDash([5, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // 7. Painter's Algorithm: Sort all points back-to-front
+      projectedPointsCache.sort((a, b) => a.depth - b.depth);
+
+      // 8. Render points
+      for (const pt of projectedPointsCache) {
+        const depthFactor = Math.min(1.0, Math.max(0.2, (pt.depth + 150) / 300));
+
+        if (pt.isSentenceWord) {
+          const radius = Math.max(6, 8.5 * pt.scale);
+
+          // Outer pulse ring
+          ctx.beginPath();
+          ctx.arc(pt.screenX, pt.screenY, radius + 5, 0, Math.PI * 2);
+          ctx.fillStyle = isDark ? "rgba(56, 189, 248, 0.25)" : "rgba(37, 99, 235, 0.2)";
+          ctx.fill();
+
+          // Main solid core
+          ctx.beginPath();
+          ctx.arc(pt.screenX, pt.screenY, radius, 0, Math.PI * 2);
+          ctx.fillStyle = isDark ? "#ffffff" : "#0f172a";
+          ctx.fill();
+          ctx.strokeStyle = pt.color;
+          ctx.lineWidth = 2.8;
+          ctx.stroke();
+
+          // Label pill badge
+          ctx.font = "bold 11px sans-serif";
+          const textMetrics = ctx.measureText(pt.word);
+          const badgeW = textMetrics.width + 10;
+          const badgeH = 18;
+          const badgeX = pt.screenX + radius + 4;
+          const badgeY = pt.screenY - 9;
+
+          ctx.fillStyle = isDark ? "rgba(15, 23, 42, 0.9)" : "rgba(255, 255, 255, 0.92)";
+          ctx.strokeStyle = isDark ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.12)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = isDark ? "#f1f5f9" : "#0f172a";
+          ctx.fillText(pt.word, badgeX + 5, badgeY + 13);
+        } else {
+          // Standard vocabulary dot
+          const radius = Math.max(2.2, 3.4 * pt.scale);
+          ctx.beginPath();
+          ctx.arc(pt.screenX, pt.screenY, radius, 0, Math.PI * 2);
+          ctx.globalAlpha = 0.35 + 0.65 * depthFactor;
+          ctx.fillStyle = pt.color;
+          ctx.fill();
+          ctx.globalAlpha = 1.0;
+        }
+      }
+
+      // 9. Update HUD statistics readout
+      const yawDeg = Math.round((camera.yaw * 180 / Math.PI) % 360);
+      const pitchDeg = Math.round((camera.pitch * 180 / Math.PI));
+      const hudAngles = document.getElementById("hudAngles");
+      if (hudAngles) hudAngles.textContent = `Yaw ${yawDeg}° | Pitch ${pitchDeg}°`;
+
+      const hudCount = document.getElementById("hudSentenceCount");
+      if (hudCount) hudCount.textContent = `${sentenceWordsOrdered.length} tokens highlighted`;
+
+      ctx.restore();
+    }
+
+    // Animation frame step for smooth auto-rotation
+    function animationLoop() {
+      if (camera.autoRotate && !camera.isDragging) {
+        camera.yaw += 0.003;
+        render3DCanvas();
+      }
+      requestAnimationFrame(animationLoop);
+    }
+
+    // Canvas Mouse & Touch Interaction handlers
+    canvas.addEventListener("mousedown", (e) => {
+      camera.isDragging = true;
+      camera.lastMouseX = e.clientX;
+      camera.lastMouseY = e.clientY;
+    });
+
+    window.addEventListener("mouseup", () => {
+      camera.isDragging = false;
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (camera.isDragging) {
+        const deltaX = e.clientX - camera.lastMouseX;
+        const deltaY = e.clientY - camera.lastMouseY;
+        camera.yaw += deltaX * 0.008;
+        camera.pitch += deltaY * 0.008;
+        camera.pitch = Math.max(-1.5, Math.min(1.5, camera.pitch));
+
+        camera.lastMouseX = e.clientX;
+        camera.lastMouseY = e.clientY;
+        render3DCanvas();
+      } else {
+        handleCanvasHover(e);
+      }
+    });
+
+    canvas.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      camera.distance += e.deltaY * 0.25;
+      camera.distance = Math.max(160, Math.min(750, camera.distance));
+      render3DCanvas();
+    }, { passive: false });
+
+    // Displays tooltip when mouse hovers over a vocabulary dot
+    function handleCanvasHover(e) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+      const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+      let closestDot = null;
+      let minDistance = 12;
+
+      for (const pt of projectedPointsCache) {
+        const dx = pt.screenX - mouseX;
+        const dy = pt.screenY - mouseY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestDot = pt;
+        }
+      }
+
+      if (closestDot) {
+        canvasTooltip.style.display = "block";
+        canvasTooltip.style.left = `${e.clientX - rect.left}px`;
+        canvasTooltip.style.top = `${e.clientY - rect.top}px`;
+        canvasTooltip.innerHTML = `<strong>${closestDot.word}</strong> <span style="color: ${closestDot.color};">(${closestDot.category})</span>`;
+      } else {
+        canvasTooltip.style.display = "none";
+      }
+    }
+
+    // Toggle 3D Auto-Rotation on and off
+    function toggleAutoRotate() {
+      camera.autoRotate = !camera.autoRotate;
+      const btn = document.getElementById("btnAutoRotate");
+      btn.textContent = camera.autoRotate ? "Pause rotation" : "Resume rotation";
+    }
+
+    // Reset 3D Camera view to defaults
+    function reset3DCamera() {
+      camera.yaw = 0.7;
+      camera.pitch = 0.35;
+      camera.distance = 380;
+      render3DCanvas();
+    }
+
+    /* ==========================================================================
+       SECTION 6: UI LOGIC & PIPELINE CONTROLLERS
+       ========================================================================== */
+
+    let currentStage = 1;
+    let currentSentenceTokens = [];
+    let selectedTokenIndex = 0;
+    let currentPositionalView = 'pe';
+
+    // Switches between the 6 pipeline stages
+    function goToStage(stageNum) {
+      currentStage = stageNum;
+      
+      const navButtons = document.querySelectorAll(".step-btn");
+      navButtons.forEach((btn, idx) => {
+        btn.classList.toggle("active", idx + 1 === stageNum);
+      });
+
+      for (let s = 1; s <= 6; s++) {
+        const card = document.getElementById(`stage${s}`);
+        card.classList.toggle("active", s === stageNum);
+      }
+
+      document.getElementById("btnPrev").disabled = (stageNum === 1);
+      document.getElementById("btnNext").disabled = (stageNum === 6);
+
+      const stageNames = [
+        "Stage 1: Text Input",
+        "Stage 2: Tokenization",
+        "Stage 3: 16D Embeddings",
+        "Stage 4: Positional Encoding",
+        "Stage 5: 3D Embedding Space",
+        "Stage 6: Similarity & Softmax"
+      ];
+      document.getElementById("currentStepLabel").innerHTML = `Current stage: <strong>${stageNames[stageNum - 1]}</strong>`;
+
+      if (stageNum === 5) {
+        setTimeout(render3DCanvas, 50);
+      }
+    }
+
+    // Step forward or backward in pipeline
+    function navigateStep(direction) {
+      const nextStage = currentStage + direction;
+      if (nextStage >= 1 && nextStage <= 6) {
+        goToStage(nextStage);
+      }
+    }
+
+    // Run All button: runs pipeline and takes user to final stage smoothly
+    function runAllStages() {
+      processPipeline();
+      goToStage(6);
+    }
+
+    // Sets an example sentence into the input field
+    function setExampleSentence(text) {
+      document.getElementById("sentenceInput").value = text;
+      onInputChanged();
+    }
+
+    // Handles user typing or editing the input sentence
+    function onInputChanged() {
+      processPipeline();
+    }
+
+    // Main pipeline execution function
+    function processPipeline() {
+      const inputEl = document.getElementById("sentenceInput");
+      const sentence = inputEl.value;
+      currentSentenceTokens = tokenizeSentence(sentence);
+
+      if (currentSentenceTokens.length === 0) {
+        currentSentenceTokens = [
+          { text: "[PAD]", id: WORD_TO_ID["[PAD]"], type: "special", category: "special", details: "Padding token" }
+        ];
+      }
+
+      const countEl = document.getElementById("tokenCountNotice");
+      countEl.textContent = `Token count: ${currentSentenceTokens.length} token${currentSentenceTokens.length === 1 ? '' : 's'}`;
+
+      renderStage2Tokens();
+      renderStage3Embeddings();
+      renderStage4Positional();
+      render3DCanvas();
+      renderStage6SimilarityAndPredictions();
+    }
+
+    // Renders token chips and breakdown table in Stage 2
+    function renderStage2Tokens() {
+      const container = document.getElementById("chipsContainer");
+      const tableBody = document.getElementById("tokenTableBody");
+      container.innerHTML = "";
+      tableBody.innerHTML = "";
+
+      currentSentenceTokens.forEach((token, index) => {
+        const cat = token.category || "grammar";
+        const catColor = CATEGORY_COLORS[cat] || "#2563eb";
+
+        const chip = document.createElement("div");
+        chip.className = `token-chip ${index === selectedTokenIndex ? 'selected' : ''}`;
+        chip.style.backgroundColor = catColor;
+        chip.innerHTML = `
+          <span class="token-text">${token.text}</span>
+          <span class="token-id">ID: ${token.id}</span>
+          <div class="tooltip">${token.details} (${token.type})</div>
+        `;
+        chip.onclick = () => selectToken(index);
+        container.appendChild(chip);
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${index + 1}</td>
+          <td><strong>${token.text}</strong></td>
+          <td class="mono">${token.id}</td>
+          <td><span style="color: ${catColor}; font-weight: 700;">${token.type}</span></td>
+          <td style="color: var(--text-muted);">${token.details}</td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+
+    // Handles selection of a token chip
+    function selectToken(index) {
+      selectedTokenIndex = index;
+      renderStage2Tokens();
+      renderStage3Embeddings();
+      updateWordPairSimilarity();
+    }
+
+    // Semantic role assigned to each of the 16 dimensions in our educational toy
+    const DIMENSION_DESCRIPTIONS = [
+      "d0: Animacy & Biological Life (creatures, organisms, fauna)",
+      "d1: Social Hierarchy & Authority (kings, queens, knights, rulers)",
+      "d2: Sustenance & Nutrition (food, fruits, dairy, drinks)",
+      "d3: Visual Perception & Chroma (colors, brightness, shades)",
+      "d4: Emotional Valence (joy, courage vs fear, sorrow)",
+      "d5: Dynamic Action & Physical Motion (verbs, travel, physical acts)",
+      "d6: Spatial Scale & Geography (castles, cities, landscapes, forests)",
+      "d7: Computation & Tech Systems (machines, robots, chips, code)",
+      "d8: Numerical Quantity & Count (digits, plurality, measures)",
+      "d9: Grammatical Function & Syntax (conjunctions, prepositions, articles)",
+      "d10: Material Concreteness (tangible physical objects vs concepts)",
+      "d11: Synthetic vs Organic Axis (man-made constructs vs natural)",
+      "d12: Agency & Willpower (active intentionality vs passive state)",
+      "d13: Technology Hardware & Data Focus",
+      "d14: Temporal Permanence (stable states vs fleeting transitions)",
+      "d15: Contextual Dispersion & Lexical Polarity"
+    ];
+
+    // Renders the 16-dimensional vector bars in Stage 3
+    function renderStage3Embeddings() {
+      const chipsBox = document.getElementById("embeddingChipsContainer");
+      chipsBox.innerHTML = "";
+
+      currentSentenceTokens.forEach((token, index) => {
+        const cat = token.category || "grammar";
+        const catColor = CATEGORY_COLORS[cat] || "#2563eb";
+        const chip = document.createElement("div");
+        chip.className = `token-chip ${index === selectedTokenIndex ? 'selected' : ''}`;
+        chip.style.backgroundColor = catColor;
+        chip.innerHTML = `
+          <span class="token-text">${token.text}</span>
+          <span class="token-id">ID: ${token.id}</span>
+        `;
+        chip.onclick = () => selectToken(index);
+        chipsBox.appendChild(chip);
+      });
+
+      const activeToken = currentSentenceTokens[selectedTokenIndex] || currentSentenceTokens[0];
+      const vector = EMBEDDINGS_TABLE[activeToken.text] || new Array(16).fill(0);
+
+      document.getElementById("selectedTokenTitle").textContent = `Token: "${activeToken.text}"`;
+      document.getElementById("selectedTokenCategory").textContent = `(Category: ${activeToken.category || 'general'})`;
+
+      const barsGrid = document.getElementById("vectorBarsGrid");
+      barsGrid.innerHTML = "";
+
+      const guideBox = document.getElementById("dimensionGuideBox");
+
+      vector.forEach((val, dimIndex) => {
+        const col = document.createElement("div");
+        col.className = "vector-col";
+        col.style.cursor = "pointer";
+
+        const isPos = val >= 0;
+        const heightPct = Math.min(100, Math.abs(val) * 140);
+        const barColor = isPos ? "var(--accent)" : "var(--negative)";
+
+        col.innerHTML = `
+          <div class="bar-track">
+            <div class="bar-fill" style="
+              height: ${heightPct}%;
+              ${isPos ? 'bottom: 0;' : 'top: 0;'}
+              background: ${barColor};
+            "></div>
+          </div>
+          <span class="dim-label">d${dimIndex}</span>
+          <span class="dim-value">${val >= 0 ? '+' : ''}${val.toFixed(2)}</span>
+        `;
+
+        col.onmouseenter = () => {
+          if (guideBox) {
+            guideBox.innerHTML = `<strong>Selected Dimension d${dimIndex}:</strong> ${DIMENSION_DESCRIPTIONS[dimIndex]} &bull; Value for "${activeToken.text}": <span class="mono">${val >= 0 ? '+' : ''}${val.toFixed(3)}</span>`;
+          }
+        };
+
+        col.onclick = col.onmouseenter;
+        barsGrid.appendChild(col);
+      });
+    }
+
+    // Toggles between Position Only, Embedding Only, and Combined Heatmaps in Stage 4
+    function setPositionalView(mode) {
+      currentPositionalView = mode;
+      document.getElementById("btnModePos").classList.toggle("active", mode === 'pe');
+      document.getElementById("btnModeEmbed").classList.toggle("active", mode === 'embed');
+      document.getElementById("btnModeCombined").classList.toggle("active", mode === 'combined');
+      renderStage4Positional();
+    }
+
+    // Renders the Positional Encoding heatmap in Stage 4
+    function renderStage4Positional() {
+      const container = document.getElementById("positionalHeatmap");
+      container.innerHTML = "";
+
+      const tokens = currentSentenceTokens;
+      const numDims = 16;
+      const isDark = currentTheme === "dark";
+
+      const grid = document.createElement("div");
+      grid.className = "heatmap-grid";
+      grid.style.gridTemplateColumns = `120px repeat(${numDims}, 30px)`;
+
+      const emptyHeader = document.createElement("div");
+      grid.appendChild(emptyHeader);
+
+      for (let d = 0; d < numDims; d++) {
+        const dHeader = document.createElement("div");
+        dHeader.className = "heatmap-header-cell";
+        dHeader.textContent = `d${d}`;
+        grid.appendChild(dHeader);
+      }
+
+      tokens.forEach((token, pos) => {
+        const rowLabel = document.createElement("div");
+        rowLabel.className = "heatmap-row-label";
+        rowLabel.innerHTML = `pos ${pos}: <strong style="margin-left:4px; color: var(--text-main);">${token.text}</strong>`;
+        grid.appendChild(rowLabel);
+
+        const pe = getPositionalEncoding(pos, numDims);
+        const emb = EMBEDDINGS_TABLE[token.text] || new Array(numDims).fill(0);
+
+        for (let d = 0; d < numDims; d++) {
+          let cellVal = 0;
+          if (currentPositionalView === 'pe') {
+            cellVal = pe[d];
+          } else if (currentPositionalView === 'embed') {
+            cellVal = emb[d];
+          } else {
+            cellVal = (emb[d] + pe[d] * 0.5);
+          }
+
+          const cell = document.createElement("div");
+          cell.className = "heatmap-cell";
+
+          const clamped = Math.max(-1, Math.min(1, cellVal));
+          if (clamped >= 0) {
+            cell.style.backgroundColor = isDark 
+              ? `rgba(56, 189, 248, ${0.15 + 0.85 * Math.abs(clamped)})`
+              : `rgba(37, 99, 235, ${0.15 + 0.85 * Math.abs(clamped)})`;
+          } else {
+            cell.style.backgroundColor = isDark
+              ? `rgba(239, 68, 68, ${0.15 + 0.85 * Math.abs(clamped)})`
+              : `rgba(220, 38, 38, ${0.15 + 0.85 * Math.abs(clamped)})`;
+          }
+          cell.textContent = cellVal.toFixed(1);
+          cell.title = `Token: ${token.text} | Dim: ${d} | Value: ${cellVal.toFixed(3)}`;
+          grid.appendChild(cell);
+        }
+      });
+
+      container.appendChild(grid);
+    }
+
+    // Category Legend setup in Stage 5
+    (function setupCategoryLegend() {
+      const legendBox = document.getElementById("categoryLegend");
+      legendBox.innerHTML = "";
+
+      for (const [catName, color] of Object.entries(CATEGORY_COLORS)) {
+        const item = document.createElement("div");
+        item.className = "legend-item";
+        item.id = `legend_${catName}`;
+        item.innerHTML = `
+          <span class="legend-color-dot" style="background: ${color};"></span>
+          <span>${catName}</span>
+        `;
+        item.onclick = () => toggleCategoryVisibility(catName);
+        legendBox.appendChild(item);
+      }
+    })();
+
+    // Toggles visibility of an entire category in the 3D plot
+    function toggleCategoryVisibility(categoryName) {
+      VISIBLE_CATEGORIES[categoryName] = !VISIBLE_CATEGORIES[categoryName];
+      const item = document.getElementById(`legend_${categoryName}`);
+      if (item) {
+        item.classList.toggle("dimmed", !VISIBLE_CATEGORIES[categoryName]);
+      }
+      render3DCanvas();
+    }
+
+    // Populates Word A and Word B dropdown selectors in Stage 6
+    function populateWordSelectors() {
+      const selectA = document.getElementById("selectWordA");
+      const selectB = document.getElementById("selectWordB");
+      selectA.innerHTML = "";
+      selectB.innerHTML = "";
+
+      const cleanVocab = VOCABULARY.filter(w => !w.startsWith("[") && !w.startsWith("##"));
+      cleanVocab.sort();
+
+      cleanVocab.forEach(word => {
+        const optA = document.createElement("option");
+        optA.value = word;
+        optA.textContent = word;
+        selectA.appendChild(optA);
+
+        const optB = document.createElement("option");
+        optB.value = word;
+        optB.textContent = word;
+        selectB.appendChild(optB);
+      });
+
+      selectA.value = "king";
+      selectB.value = "queen";
+    }
+
+    // Updates cosine similarity computation between Word A and Word B
+    function updateWordPairSimilarity() {
+      const wordA = document.getElementById("selectWordA").value || "king";
+      const wordB = document.getElementById("selectWordB").value || "queen";
+
+      const vecA = EMBEDDINGS_TABLE[wordA] || new Array(16).fill(0);
+      const vecB = EMBEDDINGS_TABLE[wordB] || new Array(16).fill(0);
+
+      const sim = cosineSimilarity(vecA, vecB);
+
+      document.getElementById("simScoreText").textContent = sim.toFixed(3);
+
+      let verdict = "";
+      let barColor = "var(--accent)";
+
+      if (sim >= 0.75) {
+        verdict = "🔥 Very Similar (Strong semantic alignment)";
+        barColor = "var(--positive)";
+      } else if (sim >= 0.35) {
+        verdict = "🔗 Related (Shares context or domain)";
+        barColor = "var(--accent)";
+      } else if (sim >= 0.0) {
+        verdict = "⚪ Unrelated (Distinct meanings)";
+        barColor = "var(--text-dim)";
+      } else {
+        verdict = "❄️ Opposite / Divergent (Contrasting directions)";
+        barColor = "var(--negative)";
+      }
+
+      document.getElementById("simVerdictText").textContent = verdict;
+
+      const barPct = ((sim + 1) / 2) * 100;
+      const fill = document.getElementById("simBarFill");
+      fill.style.width = `${barPct}%`;
+      fill.style.background = barColor;
+
+      renderTopSimilarList(wordA);
+    }
+
+    // Finds and displays top 8 most similar words to a given word
+    function renderTopSimilarList(targetWord) {
+      const listEl = document.getElementById("topSimilarList");
+      listEl.innerHTML = "";
+
+      const targetVec = EMBEDDINGS_TABLE[targetWord];
+      if (!targetVec) return;
+
+      const candidates = [];
+      for (const word of VOCABULARY) {
+        if (word === targetWord || word.startsWith("[") || word.startsWith("##")) continue;
+        const sim = cosineSimilarity(targetVec, EMBEDDINGS_TABLE[word]);
+        candidates.push({ word, sim });
+      }
+
+      candidates.sort((a, b) => b.sim - a.sim);
+      const top8 = candidates.slice(0, 8);
+
+      top8.forEach(item => {
+        const row = document.createElement("div");
+        row.className = "ranked-item";
+        const widthPct = Math.max(0, item.sim * 100);
+
+        row.innerHTML = `
+          <span class="ranked-word" title="${item.word}">${item.word}</span>
+          <div class="ranked-bar-track">
+            <div class="ranked-bar-fill" style="width: ${widthPct}%;"></div>
+          </div>
+          <span class="ranked-val">${item.sim.toFixed(2)}</span>
+        `;
+        listEl.appendChild(row);
+      });
+    }
+
+    // Temperature slider input handler
+    function onTemperatureChange() {
+      const tempVal = parseFloat(document.getElementById("tempSlider").value);
+      document.getElementById("tempDisplay").textContent = tempVal.toFixed(2);
+      renderPredictions();
+    }
+
+    // Computes and renders next-word prediction based on average context vector
+    function renderPredictions() {
+      const listEl = document.getElementById("predictionList");
+      listEl.innerHTML = "";
+
+      const tokens = currentSentenceTokens;
+      if (!tokens || tokens.length === 0) return;
+
+      const contextVec = new Array(16).fill(0);
+      let validTokensCount = 0;
+
+      tokens.forEach(t => {
+        const vec = EMBEDDINGS_TABLE[t.text];
+        if (vec) {
+          for (let d = 0; d < 16; d++) {
+            contextVec[d] += vec[d];
+          }
+          validTokensCount++;
+        }
+      });
+
+      if (validTokensCount > 0) {
+        for (let d = 0; d < 16; d++) {
+          contextVec[d] /= validTokensCount;
+        }
+      }
+
+      const candidates = [];
+      const cleanVocab = VOCABULARY.filter(w => !w.startsWith("[") && !w.startsWith("##"));
+
+      cleanVocab.forEach(word => {
+        const sim = cosineSimilarity(contextVec, EMBEDDINGS_TABLE[word]);
+        candidates.push({ word, sim });
+      });
+
+      const temp = parseFloat(document.getElementById("tempSlider").value) || 1.0;
+      const rawScores = candidates.map(c => c.sim);
+      const probabilities = softmax(rawScores, temp);
+
+      candidates.forEach((c, idx) => {
+        c.prob = probabilities[idx];
+      });
+      candidates.sort((a, b) => b.prob - a.prob);
+
+      const top5 = candidates.slice(0, 5);
+      top5.forEach(item => {
+        const row = document.createElement("div");
+        row.className = "ranked-item";
+        const pct = (item.prob * 100).toFixed(1);
+
+        row.innerHTML = `
+          <span class="ranked-word">${item.word}</span>
+          <div class="ranked-bar-track">
+            <div class="ranked-bar-fill" style="width: ${pct}%; background: var(--positive);"></div>
+          </div>
+          <span class="ranked-val">${pct}%</span>
+        `;
+        listEl.appendChild(row);
+      });
+    }
+
+    // Computes and renders N x N self-similarity matrix for words in the sentence
+    function renderSentenceSimilarityMatrix() {
+      const container = document.getElementById("sentenceMatrixContainer");
+      container.innerHTML = "";
+
+      const tokens = currentSentenceTokens;
+      const n = tokens.length;
+      if (n === 0) return;
+
+      const isDark = currentTheme === "dark";
+      const grid = document.createElement("div");
+      grid.className = "heatmap-grid";
+      grid.style.gridTemplateColumns = `90px repeat(${n}, 28px)`;
+
+      const emptyTop = document.createElement("div");
+      grid.appendChild(emptyTop);
+
+      tokens.forEach((t) => {
+        const header = document.createElement("div");
+        header.className = "heatmap-header-cell";
+        header.textContent = t.text.slice(0, 3);
+        header.title = t.text;
+        grid.appendChild(header);
+      });
+
+      tokens.forEach((rowToken, r) => {
+        const rowLabel = document.createElement("div");
+        rowLabel.className = "heatmap-row-label";
+        rowLabel.textContent = rowToken.text.slice(0, 8);
+        grid.appendChild(rowLabel);
+
+        const vecR = EMBEDDINGS_TABLE[rowToken.text] || new Array(16).fill(0);
+
+        tokens.forEach((colToken, c) => {
+          const vecC = EMBEDDINGS_TABLE[colToken.text] || new Array(16).fill(0);
+          const sim = cosineSimilarity(vecR, vecC);
+
+          const cell = document.createElement("div");
+          cell.className = "heatmap-cell";
+
+          const intensity = Math.max(0, sim);
+          cell.style.backgroundColor = isDark
+            ? `rgba(56, 189, 248, ${0.15 + 0.85 * intensity})`
+            : `rgba(37, 99, 235, ${0.15 + 0.85 * intensity})`;
+          cell.textContent = sim.toFixed(1);
+          cell.title = `"${rowToken.text}" vs "${colToken.text}": ${sim.toFixed(3)}`;
+          grid.appendChild(cell);
+        });
+      });
+
+      container.appendChild(grid);
+    }
+
+    // Renders all components in Stage 6
+    function renderStage6SimilarityAndPredictions() {
+      updateWordPairSimilarity();
+      renderPredictions();
+      renderSentenceSimilarityMatrix();
+    }
+
+    /* ==========================================================================
+       INITIALIZATION
+       ========================================================================== */
+    window.addEventListener("DOMContentLoaded", () => {
+      applyTheme(currentTheme);
+      populateWordSelectors();
+      processPipeline();
+      render3DCanvas();
+      animationLoop();
+    });
+  </script>
+</body>
+</html>
